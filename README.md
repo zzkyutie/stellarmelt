@@ -1,6 +1,6 @@
 # 💫 Stellarmelt
 
-A minimal, elegant, glassmorphism-themed landing page for the cosmic rock band **Stellarmelt**. It blends shimmering UI, soft gradients, and a starlit vibe with accessible, responsive React + TypeScript + Tailwind code — all in a single component you can split later.
+A minimal, elegant, glassmorphism-themed landing page for the cosmic rock band **Stellarmelt**. It blends shimmering UI, soft gradients, and a starlit vibe with accessible, responsive React + TypeScript + Tailwind code.
 
 **Live site:** https://stellarmelt.vercel.app
 
