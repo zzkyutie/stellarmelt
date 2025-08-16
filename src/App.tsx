@@ -1,30 +1,38 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-/**
- * Single-file landing page for the cosmic rock band: Stellarmelt
- * Tech: React (TypeScript) + Tailwind CSS
- * Paste this whole file into your App.tsx. No other files required.
- */
-
 type Star = {
-  top: number; // percent of viewport height
-  left: number; // percent of viewport width
-  size: number; // px
-  delay: number; // s
-  duration: number; // s
-  opacity: number; // 0..1
+  top: number;
+  left: number;
+  size: number;
+  delay: number;
+  duration: number;
+  opacity: number;
 };
 
 type Track = {
   no: number;
   title: string;
   link: string;
-  length: string; // e.g., "4:18"
-  about: string; // one sentence about the song
+  length: string;
+  about: string;
+};
+
+type TimelineEvent = {
+  date: string;
+  title: string;
+  detail: string;
+  image: string;
 };
 
 export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeTimelineIdx, setActiveTimelineIdx] = useState(0);
+
+  // NEW: pause flag for timeline auto-rotate
+  const [isTimelinePaused, setIsTimelinePaused] = useState(false);
+  const pauseTimeline = () => setIsTimelinePaused(true);
+  const resumeTimeline = () => setIsTimelinePaused(false);
+
   const currentYear = new Date().getFullYear();
 
   const sections = [
@@ -63,10 +71,10 @@ export default function App() {
     };
   }, []);
 
-  // Scroll-reveal for Discography cards
+  // Scroll-reveal for About + Discography cards
   useEffect(() => {
     const els = document.querySelectorAll<HTMLElement>(
-      "#discography [data-reveal]"
+      "#about [data-reveal], #discography [data-reveal]"
     );
     if (!els.length) return;
 
@@ -119,26 +127,30 @@ export default function App() {
     },
   ];
 
-  const timeline = [
+  const timeline: TimelineEvent[] = [
     {
       date: "July 27, 2025",
       title: "Stellarmelt is born",
       detail: "Band founded—constellations rearranged in celebration.",
+      image: "/timeline-born.png",
     },
     {
       date: "July 27, 2025",
       title: "Debut single “Melt”",
       detail: "First spark released into the void. Goosebumps at light-speed.",
+      image: "/timeline-debut.png",
     },
     {
       date: "September 29, 2025",
       title: "Live: Celestial Dome, Earth Orbit",
       detail: "Immersive zero-G concert (upcoming).",
+      image: "/timeline-concert.png",
     },
     {
       date: "October 14, 2025",
       title: "Album: Snow and the AI Mind",
       detail: "A winter galaxy of memory and fire (upcoming).",
+      image: "/timeline-album.png",
     },
   ];
 
@@ -173,6 +185,21 @@ export default function App() {
       about: "A quiet confession about choosing love even when it hurts.",
     },
   ];
+
+  // NEW: Auto-rotate timeline images every 5s (pausable + reduced motion aware)
+  useEffect(() => {
+    // Respect Reduced Motion
+    const prefersReduced = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    if (prefersReduced || isTimelinePaused) return;
+
+    const id = window.setInterval(() => {
+      setActiveTimelineIdx((i) => (i + 1) % timeline.length);
+    }, 5000);
+
+    return () => window.clearInterval(id);
+  }, [isTimelinePaused, timeline.length]); // ✅ include length to satisfy ESLint
 
   return (
     <div className="relative min-h-screen text-white antialiased">
@@ -288,7 +315,16 @@ export default function App() {
       {/* Skip link */}
       <a
         href="#hero"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60] focus:rounded-md focus:bg-black/60 focus:px-4 focus:py-2"
+        className="
+        sr-only 
+        focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60]
+        focus:rounded-xl focus:px-4 focus:py-2
+        focus:text-sm focus:font-medium
+        focus:outline-none
+        glass
+        focus:ring-2 focus:ring-[#dd819c]
+        focus:shadow-lg focus:shadow-[#dd819c]/30
+      "
       >
         Skip to content
       </a>
@@ -305,10 +341,15 @@ export default function App() {
               className="flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#dd819c] rounded-md"
               onClick={() => setMenuOpen(false)}
             >
-              <span
-                className="inline-block h-6 w-6 rounded-full bg-white/20 ring-1 ring-white/30"
-                aria-hidden="true"
+              {/* Logo image */}
+              <img
+                src="/favicon.png"
+                alt="Stellarmelt logo"
+                className="h-7 w-7 object-contain select-none"
+                draggable={false}
               />
+
+              {/* Band name */}
               <span className="text-lg font-semibold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-[#dd819c] via-[#a05987] to-[#3b1f52]">
                 Stellarmelt
               </span>
@@ -389,7 +430,7 @@ export default function App() {
       {/* Main */}
       <main className="pt-28 md:pt-32">
         {/* HERO */}
-        <section id="hero" className="scroll-mt-24 pb-10 sm:pb-12 lg:pb-26">
+        <section id="hero" className="scroll-mt-24 pb-10 sm:pb-12 lg:pb-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="glass rounded-3xl p-6 sm:p-10 lg:p-14 fade-in-up">
               <div className="flex flex-col md:flex-row items-center gap-10">
@@ -424,23 +465,29 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Right: Breakout hero art (hidden on mobile & tablets) */}
+                {/* Right: Hero art contained inside card (desktop only) */}
                 <div className="hidden lg:block lg:flex-1 w-full">
-                  <div className="relative mx-auto max-w-lg aspect-[4/3] rounded-2xl overflow-visible">
-                    {/* Breakout cutout image (transparent PNG/WebP in /public) */}
+                  <div className="relative mx-auto w-full max-w-xl rounded-2xl overflow-hidden">
                     <img
                       src="/hero-art.png"
-                      alt="Cosmic nebulae and planets with music notes" // decorative
-                      aria-hidden="true" // decorative
+                      alt="Cosmic nebulae and planets with music notes"
                       className="
-                      absolute z-10 pointer-events-none select-none
-                      right-[-10%] bottom-[-90%]   
-                      w-[500px] xl:w-[560px]
-                      max-w-none
-                      drop-shadow-[0_20px_90px_rgba(221,129,156,0.35)]"
+                      relative block w-full h-auto object-contain select-none
+                      drop-shadow-[0_16px_24px_rgba(221,129,156,0.28)]
+                      md:drop-shadow-[0_16px_24px_rgba(221,129,156,0.28)]
+                      xl:drop-shadow-[0_16px_24px_rgba(221,129,156,0.28)]
+                    "
                       loading="eager"
                       decoding="async"
                       draggable={false}
+                    />
+                    <div
+                      className="pointer-events-none absolute -z-10 right-[6%] bottom-[6%] h-56 w-56 rounded-full blur-2xl"
+                      aria-hidden="true"
+                      style={{
+                        background:
+                          "radial-gradient(circle, rgba(221,129,156,0.40) 0%, rgba(160,89,135,0.50) 30%, transparent 80%)",
+                      }}
                     />
                   </div>
                 </div>
@@ -468,14 +515,22 @@ export default function App() {
             </header>
 
             <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {members.map((m) => (
-                <li key={m.name} className="group">
+              {members.map((m, idx) => (
+                <li
+                  key={m.name}
+                  className="group reveal"
+                  data-reveal
+                  style={{ transitionDelay: `${idx * 90}ms` }}
+                >
                   <div className="glass rounded-2xl p-5 h-full transition-transform duration-200 group-hover:-translate-y-1">
                     <div className="flex items-center gap-4">
                       <div className="h-11 w-11 rounded-full ring-1 ring-white/30 bg-gradient-to-br from-white/20 to-white/5 grid place-items-center">
-                        <span className="text-sm font-semibold">
-                          {m.name[0]}
-                        </span>
+                        <img
+                          src="/favicon.png"
+                          alt="Stellarmelt logo"
+                          className="h-7 w-7 object-contain select-none"
+                          draggable={false}
+                        />
                       </div>
                       <div>
                         <h3 className="font-semibold">{m.name}</h3>
@@ -501,62 +556,117 @@ export default function App() {
                   Timeline
                 </h2>
                 <ol className="relative ml-3 border-l border-white/20">
-                  {timeline.map((e, idx) => (
-                    <li key={idx} className="mb-10 ml-6">
-                      <span
-                        className="absolute -left-3 top-0 grid h-6 w-6 place-items-center rounded-full ring-2 ring-white/40"
-                        style={{
-                          background:
-                            "linear-gradient(135deg, #dd819c, #a05987)",
+                  {timeline.map((e, idx) => {
+                    const isActive = activeTimelineIdx === idx;
+                    return (
+                      <li
+                        key={idx}
+                        className="mb-10 ml-6"
+                        // Pause when pointer is over this event; resume when leaving it
+                        onMouseEnter={() => {
+                          setActiveTimelineIdx(idx);
+                          pauseTimeline();
                         }}
-                        aria-hidden="true"
+                        onMouseLeave={resumeTimeline}
                       >
-                        <span className="h-2.5 w-2.5 rounded-full bg-white" />
-                      </span>
-                      <time className="text-xs uppercase tracking-widest text-white/70">
-                        {e.date}
-                      </time>
-                      <h3 className="mt-1 font-semibold text-lg">{e.title}</h3>
-                      <p className="text-white/80">{e.detail}</p>
-                    </li>
-                  ))}
+                        <span
+                          className={`absolute -left-3 top-0 grid h-6 w-6 place-items-center rounded-full ring-2 ${
+                            isActive ? "ring-[#dd819c]" : "ring-white/40"
+                          }`}
+                          style={{
+                            background:
+                              "linear-gradient(135deg, #dd819c, #a05987)",
+                            boxShadow: isActive
+                              ? "0 0 24px rgba(221,129,156,0.35)"
+                              : "none",
+                          }}
+                          aria-hidden="true"
+                        >
+                          <span className="h-2.5 w-2.5 rounded-full bg-white" />
+                        </span>
+                        <time className="text-xs uppercase tracking-widest text-white/70">
+                          {e.date}
+                        </time>
+                        <h3
+                          tabIndex={0}
+                          className={`mt-1 font-semibold text-lg outline-none transition-colors ${
+                            isActive ? "text-white" : ""
+                          }`}
+                          onFocus={() => {
+                            setActiveTimelineIdx(idx);
+                            pauseTimeline();
+                          }}
+                          onBlur={resumeTimeline}
+                        >
+                          {e.title}
+                        </h3>
+                        <p className="text-white/80">{e.detail}</p>
+                      </li>
+                    );
+                  })}
                 </ol>
               </div>
 
               {/* Right: large-screen image (hidden on mobile/tablet) */}
               <aside className="hidden lg:block">
-                {/* sticky keeps the image in view as you scroll the timeline */}
-                <div className="sticky top-28">
+                {/* sticky keeps the image in view as you scroll the timeline
+                    also pause rotation while user hovers image */}
+                <div
+                  className="sticky top-28"
+                  onMouseEnter={pauseTimeline}
+                  onMouseLeave={resumeTimeline}
+                >
                   <figure className="glass rounded-2xl overflow-hidden">
-                    {/* Background-image uses a file from /public; if it doesn't exist yet, you just see the gradient */}
-                    <div
-                      className="relative aspect-[3/4] w-full bg-center bg-cover"
-                      style={{
-                        backgroundImage: "url(/stellarmelt-timeline.jpg)",
-                      }}
-                      aria-label="Stellarmelt timeline illustration"
-                    >
-                      {/* Soft cosmic overlay so text/edges look elegant regardless of the image */}
+                    <div className="relative w-full aspect-[3/4]">
+                      {/* Base cosmic tint so it looks good even with no image */}
                       <div
                         className="absolute inset-0"
                         aria-hidden="true"
                         style={{
                           background:
-                            "radial-gradient(60% 60% at 30% 30%, rgba(221,129,156,.25) 0%, transparent 70%), radial-gradient(50% 60% at 70% 70%, rgba(160,89,135,.25) 0%, transparent 70%), linear-gradient(135deg, rgba(30,20,43,.55), rgba(59,31,82,.55))",
+                            "radial-gradient(60% 60% at 30% 30%, rgba(221,129,156,.22) 0%, transparent 70%), radial-gradient(50% 60% at 70% 70%, rgba(160,89,135,.22) 0%, transparent 70%), linear-gradient(135deg, rgba(30,20,43,.65), rgba(59,31,82,.65))",
                         }}
                       />
-                      {/* Placeholder label shown even before you add an image */}
-                      <div className="relative h-full w-full grid place-items-center">
-                        <span className="text-xs uppercase tracking-widest text-white/80 px-3 py-2 rounded-md bg-black/30 ring-1 ring-white/20">
-                          Timeline Visual Placeholder
-                        </span>
-                      </div>
+
+                      {/* Cross-fade stack: one image per event */}
+                      {timeline.map((e, idx) => (
+                        <img
+                          key={idx}
+                          src={e.image}
+                          alt=""
+                          aria-hidden="true"
+                          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ease-out ${
+                            activeTimelineIdx === idx
+                              ? "opacity-100"
+                              : "opacity-0"
+                          }`}
+                          onError={(ev) => {
+                            (
+                              ev.currentTarget as HTMLImageElement
+                            ).style.display = "none";
+                          }}
+                        />
+                      ))}
+
+                      {/* Soft overlay to unify look */}
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        aria-hidden="true"
+                        style={{
+                          background:
+                            "radial-gradient(70% 70% at 50% 30%, rgba(255,255,255,.10) 0%, transparent 60%), linear-gradient(0deg, rgba(0,0,0,.15), rgba(0,0,0,.15))",
+                        }}
+                      />
                     </div>
-                    <figcaption className="px-4 py-3 text-center text-sm text-white/80">
-                      Drop your Sora render at{" "}
-                      <code className="text-white/90">
-                        /public/stellarmelt-timeline.jpg
-                      </code>
+
+                    <figcaption
+                      className="px-4 py-3 text-center text-sm text-white/80"
+                      aria-live="polite"
+                    >
+                      <span className="opacity-70">
+                        {timeline[activeTimelineIdx].date} •{" "}
+                      </span>
+                      {timeline[activeTimelineIdx].title}
                     </figcaption>
                   </figure>
                 </div>
@@ -585,14 +695,14 @@ export default function App() {
                   <div className="relative aspect-square w-full rounded-xl overflow-hidden">
                     {/* Your real cover */}
                     <img
-                      src="/album-cover1.png"
+                      src="/album-cover.png"
                       alt="Stellarmelt — Snow and the AI Mind album cover"
                       className="absolute inset-0 h-full w-full object-cover"
                       loading="lazy"
                       decoding="async"
                       draggable={false}
                     />
-                    {/* Soft brand-tint overlay to keep the site’s look consistent (optional) */}
+                    {/* Soft brand-tint overlay */}
                     <div
                       className="absolute inset-0"
                       aria-hidden="true"
@@ -627,24 +737,77 @@ export default function App() {
                     <div className="glass rounded-2xl p-5 h-full flex flex-col justify-between transition-transform duration-200 group-hover:-translate-y-1">
                       {/* Header */}
                       <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-xs uppercase tracking-widest text-white/70">
-                            Track {t.no}
-                          </p>
-                          <h4 className="mt-1 font-semibold text-lg">
-                            {t.title}
-                          </h4>
+                        {/* LEFT: icon + text */}
+                        <div className="flex items-center gap-3">
+                          {/* Glassy note tile */}
+                          <div className="relative grid h-10 w-10 place-items-center rounded-xl glass overflow-hidden">
+                            <div
+                              className="pointer-events-none absolute inset-0 rounded-xl"
+                              aria-hidden="true"
+                              style={{
+                                background:
+                                  "radial-gradient(80% 80% at 20% 20%, rgba(221,129,156,0.14) 0%, transparent 60%), radial-gradient(80% 80% at 80% 80%, rgba(160,89,135,0.14) 0%, transparent 60%)",
+                              }}
+                            />
+                            <svg
+                              width="24px"
+                              height="24px"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                            >
+                              <circle
+                                cx="6"
+                                cy="18"
+                                r="3"
+                                fill="currentColor"
+                                stroke="currentColor"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                              />
+                              <circle
+                                cx="18"
+                                cy="17"
+                                r="3"
+                                fill="currentColor"
+                                stroke="currentColor"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                              />
+                              <path
+                                fill="currentColor"
+                                d="M21 3 9 6v4l12-3V3z"
+                              />
+                              <path
+                                stroke="currentColor"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M9 18v-8m12 7V7M9 10V6l12-3v4M9 10l12-3"
+                              />
+                            </svg>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase tracking-widest text-white/70">
+                              Track {t.no}
+                            </p>
+                            <h4 className="mt-1 font-semibold text-lg">
+                              {t.title}
+                            </h4>
+                          </div>
                         </div>
 
+                        {/* RIGHT: length pill + play button */}
                         <div className="flex items-center gap-2">
-                          {/* Length pill */}
                           <span
                             className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-white/20 bg-white/10"
                             title="Track length"
                           >
                             {t.length}
                           </span>
-                          {/* Play button */}
                           <a
                             href={t.link}
                             target="_blank"
@@ -704,7 +867,7 @@ export default function App() {
               <div className="flex items-center gap-5">
                 {/* Spotify */}
                 <a
-                  href="https://github.com/torablaze"
+                  href="https://github.com/JStanoeva"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn rounded-full p-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#dd819c]"
@@ -722,7 +885,7 @@ export default function App() {
                 </a>
                 {/* YouTube */}
                 <a
-                  href="https://github.com/torablaze"
+                  href="https://github.com/JStanoeva"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn rounded-full p-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#dd819c]"
@@ -740,7 +903,7 @@ export default function App() {
                 </a>
                 {/* Tidal */}
                 <a
-                  href="https://github.com/torablaze"
+                  href="https://github.com/JStanoeva"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn rounded-full p-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#dd819c]"
@@ -753,7 +916,7 @@ export default function App() {
                     fill="currentColor"
                     aria-hidden="true"
                   >
-                    <path d="M8 6 12 2l4 4-4 4-4-4Zm-6 6 4-4 4 4-4 4-4-4Zm12 0 4-4 4 4-4 4-4-4Zm-2 6 4-4 4 4-4 4-4-4Z" />
+                    <path d="M12.012 3.992L8.008 7.996 4.004 3.992 0 7.996 4.004 12l4.004-4.004L12.012 12l-4.004 4.004 4.004 4.004 4.004-4.004L12.012 12l4.004-4.004-4.004-4.004zM16.042 7.996l3.979-3.979L24 7.996l-3.979 3.979z" />
                   </svg>
                 </a>
               </div>
